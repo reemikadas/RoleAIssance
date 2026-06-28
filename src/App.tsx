@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Bell,
   BriefcaseBusiness,
@@ -34,6 +34,7 @@ import {
   type Job,
   type JobStatus,
 } from "./domain";
+import { getProfile, updateProfile, type ProfileData } from "./profileApi";
 
 type Page = "Home" | "Jobs" | "Applications" | "Documents" | "Interviews" | "Profile" | "Integrations";
 
@@ -279,12 +280,75 @@ function InterviewsPage() {
 }
 
 function ProfilePage() {
+  const [profile, setProfile] = useState<ProfileData | null>(null);
+  const [draft, setDraft] = useState<ProfileData | null>(null);
+  const [editing, setEditing] = useState(false);
+  const [state, setState] = useState<"loading" | "ready" | "saving" | "saved" | "error">("loading");
+
+  useEffect(() => {
+    getProfile()
+      .then(({ profile: loaded }) => {
+        setProfile(loaded);
+        setDraft(loaded);
+        setState("ready");
+      })
+      .catch(() => setState("error"));
+  }, []);
+
+  const setField = <K extends keyof ProfileData>(field: K, value: ProfileData[K]) => {
+    setDraft((current) => current ? { ...current, [field]: value } : current);
+  };
+
+  const save = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!draft) return;
+    setState("saving");
+    try {
+      const { profile: saved } = await updateProfile(draft);
+      setProfile(saved);
+      setDraft(saved);
+      setEditing(false);
+      setState("saved");
+      window.setTimeout(() => setState("ready"), 1800);
+    } catch {
+      setState("error");
+    }
+  };
+
+  if (state === "loading") {
+    return <section className="panel profile-loading"><Sparkles size={22} /><h2>Loading your verified profile...</h2></section>;
+  }
+  if (!profile || !draft) {
+    return <section className="panel profile-loading error"><ShieldCheck size={22} /><h2>Profile API is unavailable</h2><p>Make sure both the web app and API are running with <code>npm run dev</code>.</p></section>;
+  }
+
   return (
     <>
-      <section className="page-heading"><div><span className="eyebrow">Verified candidate profile</span><h1>Your career source of truth</h1><p>AI only uses facts you have reviewed and approved.</p></div><button className="primary"><Plus size={16} /> Add achievement</button></section>
+      <section className="page-heading"><div><span className="eyebrow">Verified candidate profile</span><h1>Your career source of truth</h1><p>AI only uses facts you have reviewed and approved.</p></div><button className={editing ? "secondary" : "primary"} onClick={() => { setDraft(profile); setEditing(!editing); }}>{editing ? <><X size={16} /> Cancel editing</> : <><Plus size={16} /> Update details</>}</button></section>
+      {state === "saved" && <div className="save-banner"><Check size={16} /> Profile saved. Matching will use your updated details.</div>}
+      {state === "error" && <div className="save-banner error"><X size={16} /> We couldn't save those changes. Check the highlighted information and try again.</div>}
       <div className="profile-grid">
-        <section className="panel profile-card"><div className="large-avatar">RD</div><h2>Reemika Das</h2><p>Product professional · San Francisco Bay Area</p><div className="verified"><ShieldCheck size={15} /> Profile verified</div><div className="progress-head"><span>Profile strength</span><b>82%</b></div><div className="progress"><i style={{ width: "82%" }} /></div></section>
-        <section className="panel profile-details"><div className="panel-head"><div><h2>Skills and evidence</h2><p>Used for matching and grounded document generation</p></div><button>Edit</button></div><div className="evidence-list">{candidateSkills.map((skill, i) => <div key={skill}><span><Check size={13} /></span><p><b>{skill}</b><small>{i % 2 ? "Verified from resume" : "Verified from project evidence"}</small></p><em>{i % 3 + 1} sources</em></div>)}</div></section>
+        <section className="panel profile-card"><div className="large-avatar">{profile.fullName.split(" ").map(name => name[0]).join("").slice(0, 2).toUpperCase()}</div><h2>{profile.fullName}</h2><p>{profile.headline} · {profile.location}</p><div className="verified"><ShieldCheck size={15} /> Profile verified</div><div className="progress-head"><span>Profile strength</span><b>82%</b></div><div className="progress"><i style={{ width: "82%" }} /></div><div className="profile-summary"><span>{profile.remotePreference}</span><span>{profile.targetRoles.length} target roles</span><span>{profile.skills.length} verified skills</span></div></section>
+        {editing ? (
+          <form className="panel profile-form" onSubmit={save}>
+            <div className="panel-head"><div><h2>Edit profile</h2><p>These details are stored locally and become your matching source of truth.</p></div></div>
+            <div className="form-grid">
+              <label>Full name<input required minLength={2} value={draft.fullName} onChange={e => setField("fullName", e.target.value)} /></label>
+              <label>Professional headline<input required minLength={2} value={draft.headline} onChange={e => setField("headline", e.target.value)} /></label>
+              <label>Email<input required type="email" value={draft.email} onChange={e => setField("email", e.target.value)} /></label>
+              <label>Location<input required minLength={2} value={draft.location} onChange={e => setField("location", e.target.value)} /></label>
+              <label>Work authorization<input required minLength={2} value={draft.workAuthorization} onChange={e => setField("workAuthorization", e.target.value)} /></label>
+              <label>Work preference<select value={draft.remotePreference} onChange={e => setField("remotePreference", e.target.value as ProfileData["remotePreference"])}><option>Flexible</option><option>Remote</option><option>Hybrid</option><option>On-site</option></select></label>
+              <label>GitHub URL<input type="url" value={draft.githubUrl} onChange={e => setField("githubUrl", e.target.value)} placeholder="https://github.com/username" /></label>
+              <label>Portfolio URL<input type="url" value={draft.portfolioUrl} onChange={e => setField("portfolioUrl", e.target.value)} placeholder="https://yourportfolio.com" /></label>
+              <label className="wide">Target roles <small>Separate roles with commas</small><input value={draft.targetRoles.join(", ")} onChange={e => setField("targetRoles", e.target.value.split(",").map(value => value.trim()).filter(Boolean))} /></label>
+              <label className="wide">Skills <small>Separate skills with commas</small><textarea required value={draft.skills.join(", ")} onChange={e => setField("skills", e.target.value.split(",").map(value => value.trim()).filter(Boolean))} /></label>
+            </div>
+            <div className="form-actions"><button type="button" className="secondary" onClick={() => { setDraft(profile); setEditing(false); }}>Cancel</button><button type="submit" className="primary" disabled={state === "saving"}>{state === "saving" ? "Saving..." : "Save verified profile"}</button></div>
+          </form>
+        ) : (
+          <section className="panel profile-details"><div className="panel-head"><div><h2>Skills and evidence</h2><p>Used for matching and grounded document generation</p></div><button onClick={() => setEditing(true)}>Edit</button></div><div className="evidence-list">{profile.skills.map((skill, i) => <div key={skill}><span><Check size={13} /></span><p><b>{skill}</b><small>{i % 2 ? "Verified from resume" : "Verified from project evidence"}</small></p><em>{i % 3 + 1} sources</em></div>)}</div></section>
+        )}
       </div>
     </>
   );

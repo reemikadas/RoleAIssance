@@ -16,7 +16,7 @@ RoleAIssance is an AI-assisted job-search workspace for discovering relevant rol
 - Consent-oriented integration controls
 - Job detail and application-package workflow
 
-The current release is a frontend MVP with realistic local demo data. External AI, email, calendar, GitHub, storage, and job-feed integrations are represented in the product flow but are not yet connected to production services.
+The current release includes a frontend MVP plus a local Express API and SQLite-backed editable candidate profile. External AI, authentication, email, calendar, GitHub, cloud storage, and job-feed integrations are represented in the product flow but are not yet connected to production services.
 
 ## Run locally
 
@@ -24,6 +24,13 @@ The current release is a frontend MVP with realistic local demo data. External A
 npm install
 npm run dev
 ```
+
+This starts both services:
+
+- Web app: `http://localhost:5173`
+- Local API: `http://127.0.0.1:8787`
+
+Profile changes are saved in `.data/roleaissance.db`.
 
 ## Verify
 

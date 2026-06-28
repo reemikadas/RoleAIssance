@@ -13,6 +13,7 @@ RoleAIssance is an AI-assisted job-search workspace for discovering relevant rol
 - Organized document library
 - Interview preparation workspace
 - Verified candidate profile
+- Secure local master-resume upload, replacement, download, and deletion
 - Consent-oriented integration controls
 - Job detail and application-package workflow
 
@@ -31,6 +32,7 @@ This starts both services:
 - Local API: `http://127.0.0.1:8787`
 
 Profile changes are saved in `.data/roleaissance.db`.
+Master resume files are saved with private filesystem permissions under `.data/uploads`.
 
 ## Verify
 

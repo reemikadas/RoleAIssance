@@ -7,6 +7,7 @@ import {
   ChevronDown,
   ChevronRight,
   CircleUserRound,
+  Download,
   FileCheck2,
   FileText,
   Github,
@@ -22,7 +23,9 @@ import {
   ShieldCheck,
   Sparkles,
   Target,
+  Trash2,
   TrendingUp,
+  UploadCloud,
   WandSparkles,
   X,
 } from "lucide-react";
@@ -34,7 +37,15 @@ import {
   type Job,
   type JobStatus,
 } from "./domain";
-import { getProfile, updateProfile, type ProfileData } from "./profileApi";
+import {
+  deleteMasterResume,
+  getMasterResume,
+  getProfile,
+  updateProfile,
+  uploadMasterResume,
+  type ProfileData,
+  type ResumeData,
+} from "./profileApi";
 import { parseCommaList } from "./listInput";
 
 type Page = "Home" | "Jobs" | "Applications" | "Documents" | "Interviews" | "Profile" | "Integrations";
@@ -338,6 +349,7 @@ function ProfilePage() {
       <section className="page-heading"><div><span className="eyebrow">Verified candidate profile</span><h1>Your career source of truth</h1><p>AI only uses facts you have reviewed and approved.</p></div><button className={editing ? "secondary" : "primary"} onClick={() => { setDraft(profile); setTargetRolesText(profile.targetRoles.join(", ")); setSkillsText(profile.skills.join(", ")); setEditing(!editing); }}>{editing ? <><X size={16} /> Cancel editing</> : <><Plus size={16} /> Update details</>}</button></section>
       {state === "saved" && <div className="save-banner"><Check size={16} /> Profile saved. Matching will use your updated details.</div>}
       {state === "error" && <div className="save-banner error"><X size={16} /> We couldn't save those changes. Check the highlighted information and try again.</div>}
+      <MasterResumeCard />
       <div className="profile-grid">
         <section className="panel profile-card"><div className="large-avatar">{profile.fullName.split(" ").map(name => name[0]).join("").slice(0, 2).toUpperCase()}</div><h2>{profile.fullName}</h2><p>{profile.headline} · {profile.location}</p><div className="verified"><ShieldCheck size={15} /> Profile verified</div><div className="progress-head"><span>Profile strength</span><b>82%</b></div><div className="progress"><i style={{ width: "82%" }} /></div><div className="profile-summary"><span>{profile.remotePreference}</span><span>{profile.targetRoles.length} target roles</span><span>{profile.skills.length} verified skills</span></div></section>
         {editing ? (
@@ -363,6 +375,94 @@ function ProfilePage() {
         )}
       </div>
     </>
+  );
+}
+
+function MasterResumeCard() {
+  const [resume, setResume] = useState<ResumeData | null>(null);
+  const [state, setState] = useState<"loading" | "ready" | "uploading" | "error">("loading");
+  const [message, setMessage] = useState("");
+
+  useEffect(() => {
+    getMasterResume()
+      .then(({ resume: saved }) => {
+        setResume(saved);
+        setState("ready");
+      })
+      .catch(() => {
+        setMessage("Resume storage is temporarily unavailable.");
+        setState("error");
+      });
+  }, []);
+
+  const upload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    if (!/\.(pdf|docx)$/i.test(file.name)) {
+      setMessage("Choose a PDF or DOCX file.");
+      setState("error");
+      return;
+    }
+    setMessage("");
+    setState("uploading");
+    try {
+      setResume(await uploadMasterResume(file));
+      setState("ready");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Upload failed");
+      setState("error");
+    }
+  };
+
+  const remove = async () => {
+    if (!window.confirm("Delete your master resume from RoleAIssance?")) return;
+    try {
+      await deleteMasterResume();
+      setResume(null);
+      setMessage("");
+      setState("ready");
+    } catch {
+      setMessage("We couldn't delete the master resume.");
+      setState("error");
+    }
+  };
+
+  const formatSize = (bytes: number) =>
+    bytes < 1024 * 1024
+      ? `${Math.max(1, Math.round(bytes / 1024))} KB`
+      : `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+
+  return (
+    <section className="panel master-resume">
+      <div className="resume-heading">
+        <div className="resume-icon"><FileText size={21} /></div>
+        <div><h2>Master resume</h2><p>Your original career source document. PDF or DOCX, up to 10 MB.</p></div>
+        <span><ShieldCheck size={13} /> Stored privately</span>
+      </div>
+      {state === "loading" ? (
+        <div className="resume-loading">Checking for an uploaded resume...</div>
+      ) : resume ? (
+        <div className="resume-file">
+          <div className="file-badge">{resume.mimeType === "application/pdf" ? "PDF" : "DOCX"}</div>
+          <div><b>{resume.originalName}</b><span>{formatSize(resume.size)} · Uploaded {new Date(resume.uploadedAt).toLocaleDateString()}</span></div>
+          <div className="resume-actions">
+            <a className="secondary" href="/api/resume/download"><Download size={14} /> Download</a>
+            <label className="secondary"><UploadCloud size={14} /> Replace<input type="file" accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" onChange={upload} /></label>
+            <button className="danger-button" onClick={remove} aria-label="Delete master resume"><Trash2 size={15} /></button>
+          </div>
+        </div>
+      ) : (
+        <label className="resume-drop">
+          <UploadCloud size={24} />
+          <div><b>Upload your master resume</b><span>Choose a PDF or DOCX file to use as your verified career source.</span></div>
+          <em className="primary">Choose file</em>
+          <input type="file" accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" onChange={upload} />
+        </label>
+      )}
+      {state === "uploading" && <div className="resume-message"><Sparkles size={14} /> Securely uploading your resume...</div>}
+      {state === "error" && message && <div className="resume-message error"><X size={14} /> {message}</div>}
+    </section>
   );
 }
 

@@ -22,11 +22,18 @@ export class ProfileRepository {
         target_roles TEXT NOT NULL,
         skills TEXT NOT NULL,
         github_url TEXT NOT NULL,
+        linkedin_url TEXT NOT NULL,
         portfolio_url TEXT NOT NULL,
         remote_preference TEXT NOT NULL,
         updated_at TEXT NOT NULL
       )
     `);
+    const columns = this.database.pragma("table_info(profiles)") as Array<{ name: string }>;
+    if (!columns.some((column) => column.name === "linkedin_url")) {
+      this.database.exec(
+        "ALTER TABLE profiles ADD COLUMN linkedin_url TEXT NOT NULL DEFAULT ''",
+      );
+    }
     if (!this.find()) this.save(defaultProfile);
   }
 
@@ -44,6 +51,7 @@ export class ProfileRepository {
       targetRoles: JSON.parse(row.target_roles) as string[],
       skills: JSON.parse(row.skills) as string[],
       githubUrl: row.github_url,
+      linkedinUrl: row.linkedin_url,
       portfolioUrl: row.portfolio_url,
       remotePreference: row.remote_preference as Profile["remotePreference"],
       updatedAt: row.updated_at,
@@ -55,10 +63,10 @@ export class ProfileRepository {
     this.database.prepare(`
       INSERT INTO profiles (
         id, full_name, headline, email, location, work_authorization,
-        target_roles, skills, github_url, portfolio_url, remote_preference, updated_at
+        target_roles, skills, github_url, linkedin_url, portfolio_url, remote_preference, updated_at
       ) VALUES (
         @id, @fullName, @headline, @email, @location, @workAuthorization,
-        @targetRoles, @skills, @githubUrl, @portfolioUrl, @remotePreference, @updatedAt
+        @targetRoles, @skills, @githubUrl, @linkedinUrl, @portfolioUrl, @remotePreference, @updatedAt
       )
       ON CONFLICT(id) DO UPDATE SET
         full_name = excluded.full_name,
@@ -69,6 +77,7 @@ export class ProfileRepository {
         target_roles = excluded.target_roles,
         skills = excluded.skills,
         github_url = excluded.github_url,
+        linkedin_url = excluded.linkedin_url,
         portfolio_url = excluded.portfolio_url,
         remote_preference = excluded.remote_preference,
         updated_at = excluded.updated_at

@@ -9,6 +9,13 @@ export const profileSchema = z.object({
   targetRoles: z.array(z.string().trim().min(1).max(80)).max(12),
   skills: z.array(z.string().trim().min(1).max(80)).min(1).max(50),
   githubUrl: z.union([z.literal(""), z.string().trim().url().startsWith("https://github.com/")]),
+  linkedinUrl: z.union([
+    z.literal(""),
+    z.string().trim().url().refine(
+      (value) => new URL(value).hostname.endsWith("linkedin.com"),
+      "Enter a valid LinkedIn URL",
+    ),
+  ]),
   portfolioUrl: z.union([z.literal(""), z.string().trim().url()]),
   remotePreference: z.enum(["Remote", "Hybrid", "On-site", "Flexible"]),
 });
@@ -32,6 +39,7 @@ export const defaultProfile: Profile = {
     "Analytics",
   ],
   githubUrl: "https://github.com/reemikadas",
+  linkedinUrl: "",
   portfolioUrl: "",
   remotePreference: "Flexible",
 };

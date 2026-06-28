@@ -7,6 +7,7 @@ export type ProfileData = {
   targetRoles: string[];
   skills: string[];
   githubUrl: string;
+  linkedinUrl: string;
   portfolioUrl: string;
   remotePreference: "Remote" | "Hybrid" | "On-site" | "Flexible";
   updatedAt?: string;

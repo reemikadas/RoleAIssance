@@ -42,6 +42,15 @@ export type ResumeData = {
   mimeType: string;
   size: number;
   uploadedAt: string;
+  extractionStatus: "ready" | "failed";
+  analysis: {
+    fullName: string;
+    email: string;
+    linkedinUrl: string;
+    githubUrl: string;
+    skills: string[];
+    textPreview: string;
+  } | null;
 };
 
 export async function getMasterResume() {

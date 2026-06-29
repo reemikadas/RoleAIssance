@@ -42,17 +42,18 @@ export function createApp(
 
   if (resumeStore) {
     app.get("/api/resume", (_request, response) => {
-      const resume = resumeStore.find();
+      const resume = resumeStore.metadata();
       response.json({ resume });
     });
 
-    app.post("/api/resume", upload.single("resume"), (request, response) => {
+    app.post("/api/resume", upload.single("resume"), async (request, response) => {
       if (!request.file) {
         response.status(400).json({ error: "Choose a PDF or DOCX resume" });
         return;
       }
       try {
-        response.status(201).json({ resume: resumeStore.save(request.file) });
+        await resumeStore.save(request.file);
+        response.status(201).json({ resume: resumeStore.metadata() });
       } catch (error) {
         if (error instanceof ResumeValidationError) {
           response.status(400).json({ error: error.message });
@@ -69,7 +70,7 @@ export function createApp(
         return;
       }
       response.type(resume.mimeType);
-      response.download(resumeStore.filePath(resume), resume.originalName);
+      response.download(resumeStore.filePath(), resume.originalName);
     });
 
     app.delete("/api/resume", (_request, response) => {

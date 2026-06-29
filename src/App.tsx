@@ -349,7 +349,17 @@ function ProfilePage() {
       <section className="page-heading"><div><span className="eyebrow">Verified candidate profile</span><h1>Your career source of truth</h1><p>AI only uses facts you have reviewed and approved.</p></div><button className={editing ? "secondary" : "primary"} onClick={() => { setDraft(profile); setTargetRolesText(profile.targetRoles.join(", ")); setSkillsText(profile.skills.join(", ")); setEditing(!editing); }}>{editing ? <><X size={16} /> Cancel editing</> : <><Plus size={16} /> Update details</>}</button></section>
       {state === "saved" && <div className="save-banner"><Check size={16} /> Profile saved. Matching will use your updated details.</div>}
       {state === "error" && <div className="save-banner error"><X size={16} /> We couldn't save those changes. Check the highlighted information and try again.</div>}
-      <MasterResumeCard />
+      <MasterResumeCard
+        profile={profile}
+        onProfileUpdated={(saved) => {
+          setProfile(saved);
+          setDraft(saved);
+          setTargetRolesText(saved.targetRoles.join(", "));
+          setSkillsText(saved.skills.join(", "));
+          setState("saved");
+          window.setTimeout(() => setState("ready"), 1800);
+        }}
+      />
       <div className="profile-grid">
         <section className="panel profile-card"><div className="large-avatar">{profile.fullName.split(" ").map(name => name[0]).join("").slice(0, 2).toUpperCase()}</div><h2>{profile.fullName}</h2><p>{profile.headline} · {profile.location}</p><div className="verified"><ShieldCheck size={15} /> Profile verified</div><div className="progress-head"><span>Profile strength</span><b>82%</b></div><div className="progress"><i style={{ width: "82%" }} /></div><div className="profile-summary"><span>{profile.remotePreference}</span><span>{profile.targetRoles.length} target roles</span><span>{profile.skills.length} verified skills</span></div></section>
         {editing ? (
@@ -378,10 +388,24 @@ function ProfilePage() {
   );
 }
 
-function MasterResumeCard() {
+function MasterResumeCard({
+  profile,
+  onProfileUpdated,
+}: {
+  profile: ProfileData;
+  onProfileUpdated: (profile: ProfileData) => void;
+}) {
   const [resume, setResume] = useState<ResumeData | null>(null);
   const [state, setState] = useState<"loading" | "ready" | "uploading" | "error">("loading");
   const [message, setMessage] = useState("");
+  const [reviewing, setReviewing] = useState(false);
+  const [selected, setSelected] = useState({
+    fullName: true,
+    email: true,
+    linkedinUrl: true,
+    githubUrl: true,
+    skills: true,
+  });
 
   useEffect(() => {
     getMasterResume()
@@ -408,6 +432,7 @@ function MasterResumeCard() {
     setState("uploading");
     try {
       setResume(await uploadMasterResume(file));
+      setReviewing(false);
       setState("ready");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Upload failed");
@@ -433,6 +458,42 @@ function MasterResumeCard() {
       ? `${Math.max(1, Math.round(bytes / 1024))} KB`
       : `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 
+  const applySuggestions = async () => {
+    if (!resume?.analysis) return;
+    setState("uploading");
+    setMessage("");
+    const analysis = resume.analysis;
+    try {
+      const { profile: saved } = await updateProfile({
+        ...profile,
+        fullName:
+          selected.fullName && analysis.fullName
+            ? analysis.fullName
+            : profile.fullName,
+        email:
+          selected.email && analysis.email ? analysis.email : profile.email,
+        linkedinUrl:
+          selected.linkedinUrl && analysis.linkedinUrl
+            ? analysis.linkedinUrl
+            : profile.linkedinUrl,
+        githubUrl:
+          selected.githubUrl && analysis.githubUrl
+            ? analysis.githubUrl
+            : profile.githubUrl,
+        skills:
+          selected.skills && analysis.skills.length
+            ? Array.from(new Set([...profile.skills, ...analysis.skills]))
+            : profile.skills,
+      });
+      onProfileUpdated(saved);
+      setReviewing(false);
+      setState("ready");
+    } catch {
+      setMessage("We couldn't apply the selected suggestions.");
+      setState("error");
+    }
+  };
+
   return (
     <section className="panel master-resume">
       <div className="resume-heading">
@@ -448,6 +509,11 @@ function MasterResumeCard() {
           <div><b>{resume.originalName}</b><span>{formatSize(resume.size)} · Uploaded {new Date(resume.uploadedAt).toLocaleDateString()}</span></div>
           <div className="resume-actions">
             <a className="secondary" href="/api/resume/download"><Download size={14} /> Download</a>
+            {resume.extractionStatus === "ready" && resume.analysis && (
+              <button className="secondary" onClick={() => setReviewing(!reviewing)}>
+                <Sparkles size={14} /> {reviewing ? "Close review" : "Review extracted details"}
+              </button>
+            )}
             <label className="secondary"><UploadCloud size={14} /> Replace<input type="file" accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" onChange={upload} /></label>
             <button className="danger-button" onClick={remove} aria-label="Delete master resume"><Trash2 size={15} /></button>
           </div>
@@ -462,6 +528,30 @@ function MasterResumeCard() {
       )}
       {state === "uploading" && <div className="resume-message"><Sparkles size={14} /> Securely uploading your resume...</div>}
       {state === "error" && message && <div className="resume-message error"><X size={14} /> {message}</div>}
+      {resume?.extractionStatus === "failed" && state !== "uploading" && (
+        <div className="resume-message error"><FileText size={14} /> Text could not be extracted. Re-upload a text-based PDF or DOCX to analyze it.</div>
+      )}
+      {reviewing && resume?.analysis && (
+        <div className="resume-review">
+          <div className="review-title"><div><span className="eyebrow"><Sparkles size={12} /> Review required</span><h3>Extracted profile suggestions</h3><p>Select only accurate details. Nothing is applied until you approve it.</p></div></div>
+          <div className="suggestion-list">
+            {([
+              ["fullName", "Name", resume.analysis.fullName],
+              ["email", "Email", resume.analysis.email],
+              ["linkedinUrl", "LinkedIn", resume.analysis.linkedinUrl],
+              ["githubUrl", "GitHub", resume.analysis.githubUrl],
+              ["skills", "Skills", resume.analysis.skills.join(", ")],
+            ] as const).map(([key, label, value]) => value ? (
+              <label key={key}>
+                <input type="checkbox" checked={selected[key]} onChange={event => setSelected(current => ({ ...current, [key]: event.target.checked }))} />
+                <span><b>{label}</b><em>{value}</em></span>
+              </label>
+            ) : null)}
+          </div>
+          <details><summary>View extracted text preview</summary><p>{resume.analysis.textPreview}</p></details>
+          <div className="review-actions"><button className="secondary" onClick={() => setReviewing(false)}>Cancel</button><button className="primary" onClick={applySuggestions}>Apply selected suggestions</button></div>
+        </div>
+      )}
     </section>
   );
 }

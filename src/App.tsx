@@ -377,11 +377,26 @@ function ProfilePage() {
               <label>Portfolio URL<input type="url" value={draft.portfolioUrl} onChange={e => setField("portfolioUrl", e.target.value)} placeholder="https://yourportfolio.com" /></label>
               <label className="wide">Target roles <small>Separate roles with commas</small><input value={targetRolesText} onChange={e => setTargetRolesText(e.target.value)} /></label>
               <label className="wide">Skills <small>Separate skills with commas</small><textarea required value={skillsText} onChange={e => setSkillsText(e.target.value)} /></label>
+              <label className="wide">Education <small>Degrees, schools, dates, and relevant coursework</small><textarea value={draft.education} onChange={e => setField("education", e.target.value)} /></label>
+              <label className="wide">Work Experience <small>Roles, companies, dates, and impact statements</small><textarea value={draft.workExperience} onChange={e => setField("workExperience", e.target.value)} /></label>
+              <label className="wide">Projects <small>Project names, technologies, and outcomes</small><textarea value={draft.projects} onChange={e => setField("projects", e.target.value)} /></label>
             </div>
             <div className="form-actions"><button type="button" className="secondary" onClick={() => { setDraft(profile); setTargetRolesText(profile.targetRoles.join(", ")); setSkillsText(profile.skills.join(", ")); setEditing(false); }}>Cancel</button><button type="submit" className="primary" disabled={state === "saving"}>{state === "saving" ? "Saving..." : "Save verified profile"}</button></div>
           </form>
         ) : (
-          <section className="panel profile-details"><div className="panel-head"><div><h2>Skills and evidence</h2><p>Used for matching and grounded document generation</p></div><button onClick={() => setEditing(true)}>Edit</button></div><div className="evidence-list">{profile.skills.map((skill, i) => <div key={skill}><span><Check size={13} /></span><p><b>{skill}</b><small>{i % 2 ? "Verified from resume" : "Verified from project evidence"}</small></p><em>{i % 3 + 1} sources</em></div>)}</div></section>
+          <section className="panel profile-details">
+            <div className="panel-head"><div><h2>Career profile</h2><p>Approved facts used for matching and document generation</p></div><button onClick={() => setEditing(true)}>Edit</button></div>
+            <div className="career-profile-sections">
+              {([
+                ["Education", profile.education],
+                ["Work Experience", profile.workExperience],
+                ["Projects", profile.projects],
+              ] as const).map(([label, value]) => (
+                <article key={label}><h3>{label}</h3><p>{value || `No approved ${label.toLowerCase()} yet.`}</p></article>
+              ))}
+              <article><h3>Skills</h3><div className="skill-row">{profile.skills.map(skill => <span key={skill}>{skill}</span>)}</div></article>
+            </div>
+          </section>
         )}
       </div>
     </>
@@ -404,8 +419,38 @@ function MasterResumeCard({
     email: true,
     linkedinUrl: true,
     githubUrl: true,
+    education: true,
+    workExperience: true,
+    projects: true,
     skills: true,
   });
+  const [sectionDraft, setSectionDraft] = useState({
+    education: "",
+    workExperience: "",
+    projects: "",
+    skills: "",
+  });
+
+  const openReview = () => {
+    if (!resume?.analysis) return;
+    setSelected({
+      fullName: Boolean(resume.analysis.fullName),
+      email: Boolean(resume.analysis.email),
+      linkedinUrl: Boolean(resume.analysis.linkedinUrl),
+      githubUrl: Boolean(resume.analysis.githubUrl),
+      education: Boolean(resume.analysis.education),
+      workExperience: Boolean(resume.analysis.workExperience),
+      projects: Boolean(resume.analysis.projects),
+      skills: resume.analysis.skills.length > 0,
+    });
+    setSectionDraft({
+      education: resume.analysis.education,
+      workExperience: resume.analysis.workExperience,
+      projects: resume.analysis.projects,
+      skills: resume.analysis.skills.join(", "),
+    });
+    setReviewing(true);
+  };
 
   useEffect(() => {
     getMasterResume()
@@ -480,9 +525,14 @@ function MasterResumeCard({
           selected.githubUrl && analysis.githubUrl
             ? analysis.githubUrl
             : profile.githubUrl,
+        education: selected.education ? sectionDraft.education : profile.education,
+        workExperience: selected.workExperience
+          ? sectionDraft.workExperience
+          : profile.workExperience,
+        projects: selected.projects ? sectionDraft.projects : profile.projects,
         skills:
-          selected.skills && analysis.skills.length
-            ? Array.from(new Set([...profile.skills, ...analysis.skills]))
+          selected.skills && parseCommaList(sectionDraft.skills).length
+            ? Array.from(new Set([...profile.skills, ...parseCommaList(sectionDraft.skills)]))
             : profile.skills,
       });
       onProfileUpdated(saved);
@@ -510,7 +560,7 @@ function MasterResumeCard({
           <div className="resume-actions">
             <a className="secondary" href="/api/resume/download"><Download size={14} /> Download</a>
             {resume.extractionStatus === "ready" && resume.analysis && (
-              <button className="secondary" onClick={() => setReviewing(!reviewing)}>
+              <button className="secondary" onClick={() => reviewing ? setReviewing(false) : openReview()}>
                 <Sparkles size={14} /> {reviewing ? "Close review" : "Review extracted details"}
               </button>
             )}
@@ -540,13 +590,32 @@ function MasterResumeCard({
               ["email", "Email", resume.analysis.email],
               ["linkedinUrl", "LinkedIn", resume.analysis.linkedinUrl],
               ["githubUrl", "GitHub", resume.analysis.githubUrl],
-              ["skills", "Skills", resume.analysis.skills.join(", ")],
             ] as const).map(([key, label, value]) => value ? (
               <label key={key}>
                 <input type="checkbox" checked={selected[key]} onChange={event => setSelected(current => ({ ...current, [key]: event.target.checked }))} />
                 <span><b>{label}</b><em>{value}</em></span>
               </label>
             ) : null)}
+          </div>
+          <div className="career-review-sections">
+            {([
+              ["education", "Education", "Degrees, schools, dates, and coursework"],
+              ["workExperience", "Work Experience", "Roles, companies, dates, and accomplishments"],
+              ["projects", "Projects", "Projects, technologies, and outcomes"],
+              ["skills", "Skills", "Separate skills with commas"],
+            ] as const).map(([key, label, hint]) => (
+              <label className="career-review-field" key={key}>
+                <span className="career-review-label">
+                  <input type="checkbox" checked={selected[key]} onChange={event => setSelected(current => ({ ...current, [key]: event.target.checked }))} />
+                  <span><b>{label}</b><small>{hint}</small></span>
+                </span>
+                <textarea
+                  value={sectionDraft[key]}
+                  onChange={event => setSectionDraft(current => ({ ...current, [key]: event.target.value }))}
+                  placeholder={`No ${label.toLowerCase()} content was detected. You can add it here.`}
+                />
+              </label>
+            ))}
           </div>
           <details><summary>View extracted text preview</summary><p>{resume.analysis.textPreview}</p></details>
           <div className="review-actions"><button className="secondary" onClick={() => setReviewing(false)}>Cancel</button><button className="primary" onClick={applySuggestions}>Apply selected suggestions</button></div>

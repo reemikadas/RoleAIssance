@@ -14,7 +14,8 @@ RoleAIssance is an AI-assisted job-search workspace for discovering relevant rol
 - Interview preparation workspace
 - Verified candidate profile
 - Secure local master-resume upload, replacement, download, and deletion
-- Local PDF/DOCX text extraction with an explicit profile-suggestion review step
+- Local PDF/DOCX extraction into editable Education, Work Experience, Projects,
+  and Skills sections with explicit approval before profile updates
 - Consent-oriented integration controls
 - Job detail and application-package workflow
 

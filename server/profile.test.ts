@@ -26,6 +26,9 @@ describe("profile API", () => {
       ...defaultProfile,
       headline: "Senior Product Manager",
       skills: [...defaultProfile.skills, "User research"],
+      education: "Santa Clara University — M.S. Business Analytics",
+      workExperience: "Research Assistant — Built an analytics agent.",
+      projects: "Career copilot — React, TypeScript, and Node.js",
       linkedinUrl: "https://www.linkedin.com/in/reemika-das/",
     };
     const save = await request(createApp(repository)).put("/api/profile").send(updated);
@@ -37,6 +40,9 @@ describe("profile API", () => {
     expect(read.body.profile.linkedinUrl).toBe(
       "https://www.linkedin.com/in/reemika-das/",
     );
+    expect(read.body.profile.education).toContain("Santa Clara University");
+    expect(read.body.profile.workExperience).toContain("Research Assistant");
+    expect(read.body.profile.projects).toContain("Career copilot");
   });
 
   it("rejects invalid profile updates without replacing saved data", async () => {

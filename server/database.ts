@@ -21,6 +21,9 @@ export class ProfileRepository {
         work_authorization TEXT NOT NULL,
         target_roles TEXT NOT NULL,
         skills TEXT NOT NULL,
+        education TEXT NOT NULL DEFAULT '',
+        work_experience TEXT NOT NULL DEFAULT '',
+        projects TEXT NOT NULL DEFAULT '',
         github_url TEXT NOT NULL,
         linkedin_url TEXT NOT NULL,
         portfolio_url TEXT NOT NULL,
@@ -32,6 +35,21 @@ export class ProfileRepository {
     if (!columns.some((column) => column.name === "linkedin_url")) {
       this.database.exec(
         "ALTER TABLE profiles ADD COLUMN linkedin_url TEXT NOT NULL DEFAULT ''",
+      );
+    }
+    if (!columns.some((column) => column.name === "education")) {
+      this.database.exec(
+        "ALTER TABLE profiles ADD COLUMN education TEXT NOT NULL DEFAULT ''",
+      );
+    }
+    if (!columns.some((column) => column.name === "work_experience")) {
+      this.database.exec(
+        "ALTER TABLE profiles ADD COLUMN work_experience TEXT NOT NULL DEFAULT ''",
+      );
+    }
+    if (!columns.some((column) => column.name === "projects")) {
+      this.database.exec(
+        "ALTER TABLE profiles ADD COLUMN projects TEXT NOT NULL DEFAULT ''",
       );
     }
     if (!this.find()) this.save(defaultProfile);
@@ -50,6 +68,9 @@ export class ProfileRepository {
       workAuthorization: row.work_authorization,
       targetRoles: JSON.parse(row.target_roles) as string[],
       skills: JSON.parse(row.skills) as string[],
+      education: row.education,
+      workExperience: row.work_experience,
+      projects: row.projects,
       githubUrl: row.github_url,
       linkedinUrl: row.linkedin_url,
       portfolioUrl: row.portfolio_url,
@@ -63,10 +84,12 @@ export class ProfileRepository {
     this.database.prepare(`
       INSERT INTO profiles (
         id, full_name, headline, email, location, work_authorization,
-        target_roles, skills, github_url, linkedin_url, portfolio_url, remote_preference, updated_at
+        target_roles, skills, education, work_experience, projects,
+        github_url, linkedin_url, portfolio_url, remote_preference, updated_at
       ) VALUES (
         @id, @fullName, @headline, @email, @location, @workAuthorization,
-        @targetRoles, @skills, @githubUrl, @linkedinUrl, @portfolioUrl, @remotePreference, @updatedAt
+        @targetRoles, @skills, @education, @workExperience, @projects,
+        @githubUrl, @linkedinUrl, @portfolioUrl, @remotePreference, @updatedAt
       )
       ON CONFLICT(id) DO UPDATE SET
         full_name = excluded.full_name,
@@ -76,6 +99,9 @@ export class ProfileRepository {
         work_authorization = excluded.work_authorization,
         target_roles = excluded.target_roles,
         skills = excluded.skills,
+        education = excluded.education,
+        work_experience = excluded.work_experience,
+        projects = excluded.projects,
         github_url = excluded.github_url,
         linkedin_url = excluded.linkedin_url,
         portfolio_url = excluded.portfolio_url,

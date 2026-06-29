@@ -6,6 +6,9 @@ export type ProfileData = {
   workAuthorization: string;
   targetRoles: string[];
   skills: string[];
+  education: string;
+  workExperience: string;
+  projects: string;
   githubUrl: string;
   linkedinUrl: string;
   portfolioUrl: string;
@@ -48,6 +51,9 @@ export type ResumeData = {
     email: string;
     linkedinUrl: string;
     githubUrl: string;
+    education: string;
+    workExperience: string;
+    projects: string;
     skills: string[];
     textPreview: string;
   } | null;

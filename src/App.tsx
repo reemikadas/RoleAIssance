@@ -46,7 +46,7 @@ import {
   type ProfileData,
   type ResumeData,
 } from "./profileApi";
-import { parseCommaList } from "./listInput";
+import { mergeProfileSkills, parseCommaList } from "./listInput";
 
 type Page = "Home" | "Jobs" | "Applications" | "Documents" | "Interviews" | "Profile" | "Integrations";
 
@@ -532,14 +532,18 @@ function MasterResumeCard({
         projects: selected.projects ? sectionDraft.projects : profile.projects,
         skills:
           selected.skills && parseCommaList(sectionDraft.skills).length
-            ? Array.from(new Set([...profile.skills, ...parseCommaList(sectionDraft.skills)]))
+            ? mergeProfileSkills(profile.skills, parseCommaList(sectionDraft.skills))
             : profile.skills,
       });
       onProfileUpdated(saved);
       setReviewing(false);
       setState("ready");
-    } catch {
-      setMessage("We couldn't apply the selected suggestions.");
+    } catch (error) {
+      setMessage(
+        error instanceof Error
+          ? `We couldn't apply the selected suggestions: ${error.message}`
+          : "We couldn't apply the selected suggestions.",
+      );
       setState("error");
     }
   };

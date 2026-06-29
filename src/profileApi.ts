@@ -19,9 +19,19 @@ export type ProfileData = {
 type ProfileResponse = { profile: ProfileData };
 
 async function parseResponse(response: Response): Promise<ProfileResponse> {
-  const data = (await response.json()) as ProfileResponse & { error?: string };
+  const data = (await response.json()) as ProfileResponse & {
+    error?: string;
+    fields?: Record<string, string[]>;
+  };
   if (!response.ok) {
-    throw new Error(data.error ?? "Unable to save profile");
+    const fieldMessage = Object.entries(data.fields ?? {})
+      .flatMap(([field, messages]) =>
+        messages.map((message) => `${field}: ${message}`),
+      )
+      .join("; ");
+    throw new Error(
+      fieldMessage || data.error || "Unable to save profile",
+    );
   }
   return data;
 }

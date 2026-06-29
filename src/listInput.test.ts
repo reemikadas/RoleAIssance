@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseCommaList } from "./listInput";
+import { mergeProfileSkills, parseCommaList } from "./listInput";
 
 describe("comma-separated profile fields", () => {
   it("preserves spaces inside target-role names", () => {
@@ -14,5 +14,12 @@ describe("comma-separated profile fields", () => {
       "Product Manager",
       "ML Engineer",
     ]);
+  });
+
+  it("does not exceed the verified profile's 50-skill limit", () => {
+    const existing = Array.from({ length: 50 }, (_, index) => `Skill ${index + 1}`);
+
+    expect(mergeProfileSkills(existing, ["Python", "SQL"])).toHaveLength(50);
+    expect(mergeProfileSkills(existing, ["Python", "SQL"])).toEqual(existing);
   });
 });
